@@ -616,6 +616,22 @@ void set_posestamp(T &out) {
     }
 }
 
+template<typename T>
+void set_twist(T &out) {
+    if (!use_imu_as_input) {
+        out.linear.x = kf_output.x_.vel(0);
+        out.linear.y = kf_output.x_.vel(1);
+        out.linear.z = kf_output.x_.vel(2);
+        // TODO: Add angular velocity
+    } else {
+        out.linear.x = kf_input.x_.vel(0);
+        out.linear.y = kf_input.x_.vel(1);
+        out.linear.z = kf_input.x_.vel(2);
+        // TODO: Add angular velocity
+    }
+
+}
+
 void publish_odometry(const rclcpp::Publisher<nav_msgs::msg::Odometry>::SharedPtr &pubOdomAftMapped,
                       std::shared_ptr<tf2_ros::TransformBroadcaster> &tf_br) {
 
@@ -628,6 +644,7 @@ void publish_odometry(const rclcpp::Publisher<nav_msgs::msg::Odometry>::SharedPt
         odomAftMapped.header.stamp = get_ros_time(lidar_end_time);
     }
     set_posestamp(odomAftMapped.pose.pose);
+    set_twist(odomAftMapped.twist.twist);
 
     if (odom_only){
         odomAftMapped.pose.covariance[0] = 0.1;     // Covariance for x
