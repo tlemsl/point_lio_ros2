@@ -1,5 +1,8 @@
 #include "parameters.h"
 
+bool odom_only;
+std::string odom_header_frame_id, odom_child_frame_id;
+
 bool is_first_frame = true;
 double lidar_end_time = 0.0, first_lidar_time = 0.0, time_con = 0.0;
 double last_timestamp_lidar = -1.0, last_timestamp_imu = -1.0;
@@ -31,6 +34,10 @@ double time_lag_imu_to_lidar = 0.0;
 
 void readParameters(shared_ptr<rclcpp::Node> &nh) {
     p_pre.reset(new Preprocess());
+
+    nh->declare_parameter<bool>("odom_only", true);
+    nh->declare_parameter<std::string>("odom_header_frame_id", "camera_init");
+    nh->declare_parameter<std::string>("odom_child_frame_id", "aft_mapped");
 
     nh->declare_parameter<bool>("prop_at_freq_of_imu", true);
     nh->declare_parameter<bool>("use_imu_as_input", true);
@@ -88,6 +95,10 @@ void readParameters(shared_ptr<rclcpp::Node> &nh) {
     nh->declare_parameter<int>("pcd_save.interval", -1);
 
     // 使用get_parameter方法获取参数值
+    nh->get_parameter("odom_only", odom_only);
+    nh->get_parameter("odom_header_frame_id", odom_header_frame_id);
+    nh->get_parameter("odom_child_frame_id", odom_child_frame_id);
+
     nh->get_parameter("prop_at_freq_of_imu", prop_at_freq_of_imu);
     nh->get_parameter("use_imu_as_input", use_imu_as_input);
     nh->get_parameter("check_satu", check_satu);

@@ -6,7 +6,12 @@
 #include <Eigen/Eigen>
 #include <Eigen/Core>
 #include <cstring>
+#include <string>
 #include "preprocess.h"
+
+extern bool odom_only;
+extern std::string odom_header_frame_id;
+extern std::string odom_child_frame_id;
 
 extern bool is_first_frame;
 extern double lidar_end_time, first_lidar_time, time_con;

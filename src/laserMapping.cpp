@@ -494,6 +494,9 @@ void map_incremental() {
 }
 
 void publish_init_kdtree(const rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr &pubLaserCloudFullRes) {
+    
+    if (odom_only) {return;}
+
     int size_init_ikdtree = ikdtree.size();
     PointCloudXYZI::Ptr laserCloudInit(new PointCloudXYZI(size_init_ikdtree, 1));
 
@@ -505,14 +508,19 @@ void publish_init_kdtree(const rclcpp::Publisher<sensor_msgs::msg::PointCloud2>:
     pcl::toROSMsg(*laserCloudInit, laserCloudmsg);
 
     laserCloudmsg.header.stamp = get_ros_time(lidar_end_time);
-    laserCloudmsg.header.frame_id = "camera_init";
-    pubLaserCloudFullRes->publish(laserCloudmsg);
+    laserCloudmsg.header.frame_id = odom_header_frame_id;
+    if (!odom_only) {
+        pubLaserCloudFullRes->publish(laserCloudmsg);
+    }
 }
 
 PointCloudXYZI::Ptr pcl_wait_pub(new PointCloudXYZI(500000, 1));
 PointCloudXYZI::Ptr pcl_wait_save(new PointCloudXYZI());
 
 void publish_frame_world(const rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr &pubLaserCloudFullRes) {
+
+    if (odom_only) {return;}
+
     if (scan_pub_en) {
         PointCloudXYZI::Ptr laserCloudFullRes(feats_down_body);
         int size = laserCloudFullRes->points.size();
@@ -532,7 +540,7 @@ void publish_frame_world(const rclcpp::Publisher<sensor_msgs::msg::PointCloud2>:
         pcl::toROSMsg(*laserCloudWorld, laserCloudmsg);
 
         laserCloudmsg.header.stamp = get_ros_time(lidar_end_time);
-        laserCloudmsg.header.frame_id = "camera_init";
+        laserCloudmsg.header.frame_id = odom_header_frame_id;
         pubLaserCloudFullRes->publish(laserCloudmsg);
         publish_count -= PUBFRAME_PERIOD;
     }
@@ -568,6 +576,9 @@ void publish_frame_world(const rclcpp::Publisher<sensor_msgs::msg::PointCloud2>:
 }
 
 void publish_frame_body(const rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr &pubLaserCloudFull_body) {
+
+    if (odom_only) {return;}
+
     int size = feats_undistort->points.size();
     PointCloudXYZI::Ptr laserCloudIMUBody(new PointCloudXYZI(size, 1));
 
@@ -607,8 +618,10 @@ void set_posestamp(T &out) {
 
 void publish_odometry(const rclcpp::Publisher<nav_msgs::msg::Odometry>::SharedPtr &pubOdomAftMapped,
                       std::shared_ptr<tf2_ros::TransformBroadcaster> &tf_br) {
-    odomAftMapped.header.frame_id = "camera_init";
-    odomAftMapped.child_frame_id = "aft_mapped";
+
+    odomAftMapped.header.frame_id = odom_header_frame_id;
+    odomAftMapped.child_frame_id = odom_child_frame_id;
+
     if (publish_odometry_without_downsample) {
         odomAftMapped.header.stamp = get_ros_time(time_current);
     } else {
@@ -616,28 +629,51 @@ void publish_odometry(const rclcpp::Publisher<nav_msgs::msg::Odometry>::SharedPt
     }
     set_posestamp(odomAftMapped.pose.pose);
 
+    if (odom_only){
+        odomAftMapped.pose.covariance[0] = 0.1;     // Covariance for x
+        odomAftMapped.pose.covariance[7] = 0.1;     // Covariance for y
+        odomAftMapped.pose.covariance[14] = 0.0;    // Covariance for z
+        odomAftMapped.pose.covariance[21] = 0.0;    // Covariance for roll
+        odomAftMapped.pose.covariance[28] = 0.0;    // Covariance for pitch
+        odomAftMapped.pose.covariance[35] = 0.05;   // Covariance for yaw
+
+        odomAftMapped.twist.covariance[0] = 0.1;    // Covariance for linear velocity on x
+        odomAftMapped.twist.covariance[7] = 0.1;    // Covariance for linear velocity on y
+        odomAftMapped.twist.covariance[14] = 0.0;   // Covariance for linear velocity on z
+        odomAftMapped.twist.covariance[21] = 0.0;  // Covariance for angular velocity (roll)
+        odomAftMapped.twist.covariance[28] = 0.0;  // Covariance for angular velocity (pitch)
+        odomAftMapped.twist.covariance[35] = 0.05;  // Covariance for angular velocity (yaw)
+    }
+
     pubOdomAftMapped->publish(odomAftMapped);
 
     //static tf2_ros::TransformBroadcaster br = std::make_shared<tf2_ros::TransformBroadcaster>(*this);
     geometry_msgs::msg::TransformStamped transform;
-    transform.header.frame_id = "camera_init";
-    transform.child_frame_id = "aft_mapped";
+    transform.header.frame_id = odom_header_frame_id;
+    transform.child_frame_id = odom_child_frame_id;
+
     transform.transform.translation.x = odomAftMapped.pose.pose.position.x;
     transform.transform.translation.y = odomAftMapped.pose.pose.position.y;
     transform.transform.translation.z = odomAftMapped.pose.pose.position.z;
+
     transform.transform.rotation.w = odomAftMapped.pose.pose.orientation.w;
     transform.transform.rotation.x = odomAftMapped.pose.pose.orientation.x;
     transform.transform.rotation.y = odomAftMapped.pose.pose.orientation.y;
     transform.transform.rotation.z = odomAftMapped.pose.pose.orientation.z;
+
     transform.header.stamp = odomAftMapped.header.stamp;
+
     tf_br->sendTransform(transform);
 }
 
 void publish_path(const rclcpp::Publisher<nav_msgs::msg::Path>::SharedPtr &pubPath) {
+
+    if (odom_only) {return;}
+
     set_posestamp(msg_body_pose.pose);
     // msg_body_pose.header.stamp = ros::Time::now();
     msg_body_pose.header.stamp = get_ros_time(lidar_end_time);
-    msg_body_pose.header.frame_id = "camera_init";
+    msg_body_pose.header.frame_id = odom_header_frame_id;
     static int jjj = 0;
     jjj++;
     // if (jjj % 2 == 0) // if path is too large, the rvis will crash
@@ -654,7 +690,7 @@ int main(int argc, char **argv) {
     cout << "lidar_type: " << lidar_type << endl;
 
     path.header.stamp = get_ros_time(lidar_end_time);
-    path.header.frame_id = "camera_init";
+    path.header.frame_id = odom_header_frame_id;
 
     /*** variables definition for counting ***/
     int frame_num = 0;
@@ -719,18 +755,36 @@ int main(int argc, char **argv) {
     sub_pcl = nh->create_subscription<sensor_msgs::msg::PointCloud2>(lid_topic, rclcpp::SensorDataQoS(), standard_pcl_cbk);
     // }
     auto sub_imu = nh->create_subscription<sensor_msgs::msg::Imu>(imu_topic, 200000, imu_cbk);
-    auto pubLaserCloudFullRes = nh->create_publisher<sensor_msgs::msg::PointCloud2>
-            ("/cloud_registered", 100000);
-    auto pubLaserCloudFullRes_body = nh->create_publisher<sensor_msgs::msg::PointCloud2>
-            ("/cloud_registered_body", 100000);
-    auto pubLaserCloudEffect = nh->create_publisher<sensor_msgs::msg::PointCloud2>
-            ("/cloud_effected", 100000);
-    auto pubLaserCloudMap = nh->create_publisher<sensor_msgs::msg::PointCloud2>
-            ("/Laser_map", 100000);
-    auto pubOdomAftMapped = nh->create_publisher<nav_msgs::msg::Odometry>
-            ("/aft_mapped_to_init", 100000);
-    auto pubPath = nh->create_publisher<nav_msgs::msg::Path>
-            ("/path", 100000);
+
+    rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr pubLaserCloudFullRes;
+    rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr pubLaserCloudFullRes_body;
+    rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr pubLaserCloudEffect;
+    rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr pubLaserCloudMap;
+    rclcpp::Publisher<nav_msgs::msg::Path>::SharedPtr pubPath;
+
+    if (!odom_only){
+        pubLaserCloudFullRes = nh->create_publisher<sensor_msgs::msg::PointCloud2>
+                ("/cloud_registered", 100000);
+        pubLaserCloudFullRes_body = nh->create_publisher<sensor_msgs::msg::PointCloud2>
+                ("/cloud_registered_body", 100000);
+        pubLaserCloudEffect = nh->create_publisher<sensor_msgs::msg::PointCloud2>
+                ("/cloud_effected", 100000);
+        pubLaserCloudMap = nh->create_publisher<sensor_msgs::msg::PointCloud2>
+                ("/Laser_map", 100000);
+        pubPath = nh->create_publisher<nav_msgs::msg::Path>
+                ("/path", 100000);
+    }
+
+    // Choose topic name depending on odom_only value
+    rclcpp::Publisher<nav_msgs::msg::Odometry>::SharedPtr pubOdomAftMapped;
+    if (odom_only){
+        pubOdomAftMapped = nh->create_publisher<nav_msgs::msg::Odometry>
+                ("/odom_corrected", 100000);
+    } else {
+        pubOdomAftMapped = nh->create_publisher<nav_msgs::msg::Odometry>
+                ("/aft_mapped_to_init", 100000);
+    }
+
     //auto plane_pub = nh->create_publisher<visualization_msgs::msg::Marker>
     //        ("/planner_normal", 1000);
     auto tf_broadcaster = std::make_shared<tf2_ros::TransformBroadcaster>(nh);
