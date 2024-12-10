@@ -650,9 +650,15 @@ void publish_odometry(const rclcpp::Publisher<nav_msgs::msg::Odometry>::SharedPt
     set_twist(odomAftMapped.twist.twist);
 
     if (odom_only){
-        odomAftMapped.pose.covariance[0] = kf_output.get_P()(0, 0);  // Covariance for x
-        odomAftMapped.pose.covariance[7] = kf_output.get_P()(1, 1);  // Covariance for y
-        odomAftMapped.pose.covariance[14] = kf_output.get_P()(2, 2); // Covariance for z
+        Matrix3d cov = kf_output.get_P().block<3, 3>(0, 0);
+
+        // Get the position components (first 3x3)
+        for (int i = 0; i < 3; i++) {
+            for (int j = 0; j < 3; j++) {
+                odomAftMapped.pose.covariance[6 * i + j] = cov(i, j);
+            }
+        }
+
         odomAftMapped.pose.covariance[21] = 0.0;    // Covariance for roll
         odomAftMapped.pose.covariance[28] = 0.0;    // Covariance for pitch
         odomAftMapped.pose.covariance[35] = 0.05;   // Covariance for yaw
