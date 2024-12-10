@@ -622,14 +622,17 @@ void set_twist(T &out) {
         out.linear.x = kf_output.x_.vel(0);
         out.linear.y = kf_output.x_.vel(1);
         out.linear.z = kf_output.x_.vel(2);
-        // TODO: Add angular velocity
+        out.angular.x = kf_output.x_.omg(0);
+        out.angular.y = kf_output.x_.omg(1);
+        out.angular.z = kf_output.x_.omg(2);
     } else {
         out.linear.x = kf_input.x_.vel(0);
         out.linear.y = kf_input.x_.vel(1);
         out.linear.z = kf_input.x_.vel(2);
-        // TODO: Add angular velocity
+        out.angular.x = imu_last.angular_velocity.x;
+        out.angular.y = imu_last.angular_velocity.y;
+        out.angular.z = imu_last.angular_velocity.z;
     }
-
 }
 
 void publish_odometry(const rclcpp::Publisher<nav_msgs::msg::Odometry>::SharedPtr &pubOdomAftMapped,
