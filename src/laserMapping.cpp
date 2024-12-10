@@ -650,9 +650,9 @@ void publish_odometry(const rclcpp::Publisher<nav_msgs::msg::Odometry>::SharedPt
     set_twist(odomAftMapped.twist.twist);
 
     if (odom_only){
-        odomAftMapped.pose.covariance[0] = 0.1;     // Covariance for x
-        odomAftMapped.pose.covariance[7] = 0.1;     // Covariance for y
-        odomAftMapped.pose.covariance[14] = 0.0;    // Covariance for z
+        odomAftMapped.pose.covariance[0] = kf_output.get_P()(0, 0);  // Covariance for x
+        odomAftMapped.pose.covariance[7] = kf_output.get_P()(1, 1);  // Covariance for y
+        odomAftMapped.pose.covariance[14] = kf_output.get_P()(2, 2); // Covariance for z
         odomAftMapped.pose.covariance[21] = 0.0;    // Covariance for roll
         odomAftMapped.pose.covariance[28] = 0.0;    // Covariance for pitch
         odomAftMapped.pose.covariance[35] = 0.05;   // Covariance for yaw
