@@ -124,7 +124,7 @@ Clone the repository and colcon build:
     cd catkin_point_lio_unilidar/src
     git clone https://github.com/dfloreaa/point_lio_ros2.git
     cd ..
-    colcon build --symling-install
+    colcon build --symlink-install
     source install/setup.bash
 ```
 - Remember to source the livox_ros_driver before build (follow 3.3 `livox_ros_driver2`)
