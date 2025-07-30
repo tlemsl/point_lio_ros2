@@ -266,74 +266,74 @@ void standard_pcl_cbk(const sensor_msgs::msg::PointCloud2::SharedPtr msg) {
     sig_buffer.notify_all();
 }
 
-// void livox_pcl_cbk(const livox_ros_driver2::msg::CustomMsg::SharedPtr msg) {
-//     mtx_buffer.lock();
-//     double preprocess_start_time = omp_get_wtime();
-//     scan_count++;
-//     if (get_time_sec(msg->header.stamp) < last_timestamp_lidar) {
-//         RCLCPP_ERROR(logger, "lidar loop back, clear buffer");
+void livox_pcl_cbk(const livox_ros_driver2::msg::CustomMsg::SharedPtr msg) {
+    mtx_buffer.lock();
+    double preprocess_start_time = omp_get_wtime();
+    scan_count++;
+    if (get_time_sec(msg->header.stamp) < last_timestamp_lidar) {
+        RCLCPP_ERROR(logger, "lidar loop back, clear buffer");
 
-//         mtx_buffer.unlock();
-//         sig_buffer.notify_all();
-//         return;
-//     }
+        mtx_buffer.unlock();
+        sig_buffer.notify_all();
+        return;
+    }
 
-//     last_timestamp_lidar = get_time_sec(msg->header.stamp);
+    last_timestamp_lidar = get_time_sec(msg->header.stamp);
 
-//     PointCloudXYZI::Ptr ptr(new PointCloudXYZI());
-//     PointCloudXYZI::Ptr ptr_div(new PointCloudXYZI());
-//     p_pre->process(msg, ptr);
-//     double time_div = get_time_sec(msg->header.stamp);
-//     if (cut_frame) {
-//         sort(ptr->points.begin(), ptr->points.end(), time_list);
+    PointCloudXYZI::Ptr ptr(new PointCloudXYZI());
+    PointCloudXYZI::Ptr ptr_div(new PointCloudXYZI());
+    p_pre->process(msg, ptr);
+    double time_div = get_time_sec(msg->header.stamp);
+    if (cut_frame) {
+        sort(ptr->points.begin(), ptr->points.end(), time_list);
 
-//         for (int i = 0; i < ptr->size(); i++) {
-//             ptr_div->push_back(ptr->points[i]);
-//             if (ptr->points[i].curvature / double(1000) + get_time_sec(msg->header.stamp) - time_div >
-//                 cut_frame_time_interval) {
-//                 if (ptr_div->size() < 1) continue;
-//                 PointCloudXYZI::Ptr ptr_div_i(new PointCloudXYZI());
-//                 // cout << "ptr div num:" << ptr_div->size() << endl;
-//                 *ptr_div_i = *ptr_div;
-//                 // cout << "ptr div i num:" << ptr_div_i->size() << endl;
-//                 lidar_buffer.push_back(ptr_div_i);
-//                 time_buffer.push_back(time_div);
-//                 time_div += ptr->points[i].curvature / double(1000);
-//                 ptr_div->clear();
-//             }
-//         }
-//         if (!ptr_div->empty()) {
-//             lidar_buffer.push_back(ptr_div);
-//             // ptr_div->clear();
-//             time_buffer.push_back(time_div);
-//         }
-//     } else if (con_frame) {
-//         if (frame_ct == 0) {
-//             time_con = last_timestamp_lidar; //get_time_sec(msg->header.stamp);
-//         }
-//         if (frame_ct < con_frame_num) {
-//             for (int i = 0; i < ptr->size(); i++) {
-//                 ptr->points[i].curvature += (last_timestamp_lidar - time_con) * 1000;
-//                 ptr_con->push_back(ptr->points[i]);
-//             }
-//             frame_ct++;
-//         } else {
-//             PointCloudXYZI::Ptr ptr_con_i(new PointCloudXYZI());
-//             *ptr_con_i = *ptr_con;
-//             double time_con_i = time_con;
-//             lidar_buffer.push_back(ptr_con_i);
-//             time_buffer.push_back(time_con_i);
-//             ptr_con->clear();
-//             frame_ct = 0;
-//         }
-//     } else {
-//         lidar_buffer.emplace_back(ptr);
-//         time_buffer.emplace_back(get_time_sec(msg->header.stamp));
-//     }
-//     s_plot11[scan_count] = omp_get_wtime() - preprocess_start_time;
-//     mtx_buffer.unlock();
-//     sig_buffer.notify_all();
-// }
+        for (int i = 0; i < ptr->size(); i++) {
+            ptr_div->push_back(ptr->points[i]);
+            if (ptr->points[i].curvature / double(1000) + get_time_sec(msg->header.stamp) - time_div >
+                cut_frame_time_interval) {
+                if (ptr_div->size() < 1) continue;
+                PointCloudXYZI::Ptr ptr_div_i(new PointCloudXYZI());
+                // cout << "ptr div num:" << ptr_div->size() << endl;
+                *ptr_div_i = *ptr_div;
+                // cout << "ptr div i num:" << ptr_div_i->size() << endl;
+                lidar_buffer.push_back(ptr_div_i);
+                time_buffer.push_back(time_div);
+                time_div += ptr->points[i].curvature / double(1000);
+                ptr_div->clear();
+            }
+        }
+        if (!ptr_div->empty()) {
+            lidar_buffer.push_back(ptr_div);
+            // ptr_div->clear();
+            time_buffer.push_back(time_div);
+        }
+    } else if (con_frame) {
+        if (frame_ct == 0) {
+            time_con = last_timestamp_lidar; //get_time_sec(msg->header.stamp);
+        }
+        if (frame_ct < con_frame_num) {
+            for (int i = 0; i < ptr->size(); i++) {
+                ptr->points[i].curvature += (last_timestamp_lidar - time_con) * 1000;
+                ptr_con->push_back(ptr->points[i]);
+            }
+            frame_ct++;
+        } else {
+            PointCloudXYZI::Ptr ptr_con_i(new PointCloudXYZI());
+            *ptr_con_i = *ptr_con;
+            double time_con_i = time_con;
+            lidar_buffer.push_back(ptr_con_i);
+            time_buffer.push_back(time_con_i);
+            ptr_con->clear();
+            frame_ct = 0;
+        }
+    } else {
+        lidar_buffer.emplace_back(ptr);
+        time_buffer.emplace_back(get_time_sec(msg->header.stamp));
+    }
+    s_plot11[scan_count] = omp_get_wtime() - preprocess_start_time;
+    mtx_buffer.unlock();
+    sig_buffer.notify_all();
+}
 
 void imu_cbk(const sensor_msgs::msg::Imu::SharedPtr msg_in) {
     publish_count++;
@@ -774,12 +774,12 @@ int main(int argc, char **argv) {
 
     /*** ROS subscribe initialization ***/
     rclcpp::Subscription<sensor_msgs::msg::PointCloud2>::SharedPtr sub_pcl;
-    // rclcpp::Subscription<livox_ros_driver2::msg::CustomMsg>::SharedPtr sub_pcl_livox_;
-    // if (p_pre->lidar_type == AVIA) {
-    //     sub_pcl_livox_ = nh->create_subscription<livox_ros_driver2::msg::CustomMsg>(lid_topic, 20, livox_pcl_cbk);
-    // } else {
-    sub_pcl = nh->create_subscription<sensor_msgs::msg::PointCloud2>(lid_topic, rclcpp::SensorDataQoS(), standard_pcl_cbk);
-    // }
+    rclcpp::Subscription<livox_ros_driver2::msg::CustomMsg>::SharedPtr sub_pcl_livox_;
+    if (p_pre->lidar_type == AVIA) {
+        sub_pcl_livox_ = nh->create_subscription<livox_ros_driver2::msg::CustomMsg>(lid_topic, 20, livox_pcl_cbk);
+    } else {
+        sub_pcl = nh->create_subscription<sensor_msgs::msg::PointCloud2>(lid_topic, rclcpp::SensorDataQoS(), standard_pcl_cbk);
+    }
     auto sub_imu = nh->create_subscription<sensor_msgs::msg::Imu>(imu_topic, 200000, imu_cbk);
 
     rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr pubLaserCloudFullRes;
